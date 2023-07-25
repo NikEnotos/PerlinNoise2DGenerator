@@ -1,8 +1,8 @@
-#include <iostream>
+﻿#include <iostream>
 #include "PerlinNoise2DGenerator.h"
 #include "SFML/Graphics.hpp"
 
-int main()
+ int main()
 {
     int seed = 12346788;
     int friquency = 10;
@@ -22,9 +22,9 @@ int main()
     // Set up threshold for each type of tile 
     ////////////////////////////////////////////
     int mountainsLevel = 240;
-    int forstLevel = 210;
-    int hillsLevel = 180;
-    int meadowsLevel1 = 150;
+    int forstLevel = 200;
+    int hillsLevel = 160; //110
+    int meadowsLevel1 = 130; //100
     int sandLevel = 80;
     int shallowWaterLevel = 60;
     int deepWaterLevel = 20;
@@ -111,3 +111,5 @@ int main()
     }
 
 }
+
+

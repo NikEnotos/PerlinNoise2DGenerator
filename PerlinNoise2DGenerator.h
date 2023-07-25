@@ -28,6 +28,8 @@ private:
 
 	float dotProduct(Point A, Point B);
 
+	float thresholdsSetup(float value, float minThreshold, float maxThreshold);
+
 	float fadeLerp(float fract, float A, float B);
-	float cosLerp(float fract, float A, float B, float minResult = -1.0, float maxResult = 1.0);
+	float cosLerp(float fract, float A, float B);
 };
