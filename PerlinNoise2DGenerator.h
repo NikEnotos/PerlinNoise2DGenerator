@@ -11,11 +11,14 @@ class PerlinNoise2DGenerator
 {
 public: 
 
-	PerlinNoise2DGenerator(int widthX, int heightY, int friquency, int seedIn = 0, bool useCosLerp = false, float minThreshold = -1.0, float maxThreshold = 1.0);
+	PerlinNoise2DGenerator(int widthX, int heightY, int friquency, int seedIn = 0, bool seamlessVertically = false, bool seamlessHorizontally = false, bool useCosLerp = false, float minThreshold = -1.0, float maxThreshold = 1.0);
 
 	inline int getSeed() { return seed; }
 
 	float getValueAtPoint(int x, int y);
+
+	int Width;
+	int Height;
 
 private:
 

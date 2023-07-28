@@ -4,7 +4,7 @@
 #include "PerlinNoise2DGenerator.h"
 
 
-PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friquency, int seedIn, bool useCosLerp, float minThreshold, float maxThreshold)
+PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friquency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, bool useCosLerp, float minThreshold, float maxThreshold)
 {
     f = friquency;
 
@@ -14,6 +14,10 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friq
 
     // Creating array with recalculated width and height 
     noise2DArray.resize(newWidthX, std::vector<float>(newHeightY));
+
+    // Save current width and height to variables
+    Width = newWidthX;
+    Height = newHeightY;
 
     // Setting seed in the object
     if (seedIn == 0) 
@@ -37,6 +41,24 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friq
             std::mt19937 secondRandomization(firstRandomization() * (y + 1) + x);
             std::mt19937 randChoise(secondRandomization());
             initial2DNoiseGrid[x][y] = possibleVectors[randChoise() % std::size(possibleVectors)];
+        }
+    }
+
+    // Make the noise seamless along Y axis
+    if (seamlessVertically)
+    {
+        for (int i = 0; i <= (newHeightY / (f + 1)); ++i)
+        {
+            initial2DNoiseGrid[(newWidthX / (f + 1))][i] = initial2DNoiseGrid[0][i];
+        }
+    }
+
+    // Make the noise seamless along X axis
+    if (seamlessHorizontally)
+    {
+        for (int i = 0; i <= (newWidthX / (f + 1)); ++i)
+        {
+            initial2DNoiseGrid[i][(newHeightY / (f + 1))] = initial2DNoiseGrid[i][0];
         }
     }
 
@@ -102,9 +124,17 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friq
         }
     }
 
-    // Rescale ouptut array to original size 
-    noise2DArray.resize(widthX, std::vector<float>(heightY));
-
+    // Rescale ouptut array to propper size relying on the "seamlessness" requirements
+    if (!seamlessVertically)
+    {
+        noise2DArray.resize(widthX);
+        Width = widthX;
+    }
+    if (!seamlessHorizontally)
+    {
+        noise2DArray.resize(Width, std::vector<float>(heightY));
+        Height = heightY;
+    }
 }
 
 float PerlinNoise2DGenerator::dotProduct(Point A, Point B)
