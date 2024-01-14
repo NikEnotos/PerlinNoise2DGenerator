@@ -4,9 +4,9 @@
 #include "PerlinNoise2DGenerator.h"
 
 
-PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friquency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, bool useCosLerp, float minThreshold, float maxThreshold)
+PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, bool useCosLerp, float minThreshold, float maxThreshold)
 {
-    f = friquency;
+    f = frequency;
 
     // Recalculate width and height of array
     int newWidthX = (widthX - 1) % (f + 1) == 0 ? widthX : widthX + f + 1 - ((widthX - 1) % (f + 1));  // made with the help of HelgSugarcube
@@ -150,8 +150,8 @@ float PerlinNoise2DGenerator::fadeLerp(float fract, float A, float B)
 float PerlinNoise2DGenerator::cosLerp(float fract, float A, float B)
 {
     float ft = fract * 3.1415927f;
-    float f = (1.0f - std::cos(ft)) * 0.5f;
-    float result = A * (1.0f - f) + B * f;
+    float weightFactor = (1.0f - std::cos(ft)) * 0.5f;
+    float result = A * (1.0f - weightFactor) + B * weightFactor;
     return result;
 }
 
@@ -178,13 +178,13 @@ float PerlinNoise2DGenerator::getValueAtPoint(int x, int y)
 
 
 // OLD VERSION
-/* PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int friquency, int seedIn, bool useCosLerp, float minThreshold, float maxThreshold)
+/* PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool useCosLerp, float minThreshold, float maxThreshold)
 {
     std::vector<float> row(widthX, 0);
     std::vector<std::vector<float>> tempArray(heightY, row);
     noise2DArray = tempArray; // Creating of resulted noise array
 
-    f = friquency;
+    f = frequency;
 
     // Setting seed in the object
     if (seedIn == 0)

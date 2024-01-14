@@ -6,11 +6,11 @@
 
  int main()
 {
-    int seed = 12346789;
+    int seed = 123456788;
     int friquency = 10;  //11
     const int width = 120;  //100
-    const int height = 88;  //80
-    PerlinNoise2DGenerator noise(width, height, friquency, seed, true, true);
+    const int height = 80;  //80
+    PerlinNoise2DGenerator noise(width, height, friquency, seed, true);
     
 
     int friquency_Add = 6;
@@ -126,7 +126,7 @@
     }
 
     /////////////////////////////////////////////////////  RIVERS LOGIC  /////////////////////////////////////////////////////
-    /*int numOfRivers = 0;
+    int numOfRivers = 0;
     int riverSeed = 666;
 
     std::mt19937 randDir(riverSeed);
@@ -237,7 +237,7 @@
         }
 
     }
-    */
+    
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
