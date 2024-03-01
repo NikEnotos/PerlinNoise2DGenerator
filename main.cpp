@@ -7,7 +7,7 @@
  int main()
 {
     int seed = 123456788;
-    int friquency = 7;
+    int friquency = 34;
     const int width = 1900;
     const int height = 1060;
 
@@ -17,7 +17,7 @@
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Start the clock
     auto noise_Generation_start = std::chrono::high_resolution_clock::now();
 
-    PerlinNoise2DGenerator noise(width, height, friquency, seed, true);
+    PerlinNoise2DGenerator noise(width, height, friquency, seed, true, true);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Stop the clock
     auto noise_Generation_end = std::chrono::high_resolution_clock::now();
@@ -33,7 +33,7 @@
     const float maxValue = 1.0f;
 
     //sf::RenderWindow window(sf::VideoMode(noise.Width/4, noise.Height/4), "Black and White Image");
-    sf::RenderWindow window(sf::VideoMode(0.2 * 1900, 0.2 * 1060), "Black and White Image");
+    sf::RenderWindow window(sf::VideoMode( 1900, 1060), "Black and White Image");
 
     // Create an SFML image to store the pixel data
     sf::Image image;
