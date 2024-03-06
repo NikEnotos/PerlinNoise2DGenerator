@@ -52,7 +52,7 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
 
     // TODO: find a better way to separate the task
     praparationRange = std::ceil(float(Width) / numCPUs);
-    leftForPreparation = Width - 1;
+    leftForPreparation = Width;
 
     // Creating Ptoducers and Customers threads
     std::vector<std::thread> gridPreparationThreads(numCPUs / 2);
@@ -111,8 +111,8 @@ void PerlinNoise2DGenerator::gridPreparation()
 
             if (leftForPreparation > 0)
             {
-                start = leftForPreparation;
-                end = leftForPreparation = (leftForPreparation - praparationRange) >= 0 ? leftForPreparation - praparationRange : 0;
+                end = leftForPreparation;
+                start = leftForPreparation = (leftForPreparation - praparationRange) >= 0 ? leftForPreparation - praparationRange : 0;
             }
             else
             {
@@ -123,7 +123,7 @@ void PerlinNoise2DGenerator::gridPreparation()
         }
 
         // Generate Perlin noise value for each element of noise2DArray
-        for (int x = start; x >= end; --x) //noise2DArray[0].size()
+        for (int x = start; x < end; ++x) //noise2DArray[0].size()
         {
             for (int y = 0; y < Height; ++y)
             {
