@@ -239,7 +239,7 @@ void PerlinNoise2DGenerator::GridInterpolation()
 
             // LOCK noise2DArray
             {
-                std::unique_lock<std::mutex> lock_noise2DArray(tasksQueue_mutex);
+                std::unique_lock<std::mutex> lock_noise2DArray(noise2DArray_mutex);
                 // Set value of Perling noise in the position to array
                 noise2DArray[taskInProcess.xPosotion][taskInProcess.yPosition] = finalLerp;
             }
