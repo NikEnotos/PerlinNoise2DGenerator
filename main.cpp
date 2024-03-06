@@ -8,8 +8,8 @@
 {
     int seed = 123456788;
     int friquency = 34;
-    const int width = 1900;
-    const int height = 1060;
+    const int width = 5900;
+    const int height = 5060;
 
 
 

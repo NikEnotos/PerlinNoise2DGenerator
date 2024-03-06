@@ -69,9 +69,12 @@ private:
 	// value to trask progress of preparation
 	int leftForPreparation;
 	// queue of prepared blocks of tasks
-	std::queue<std::queue<Task>> tasksQueue;
+	std::queue<Task> tasksQueue;
 	// to control finished threads
 	int finishedThreadsNum = 0;
+
+	// DEBUG
+	int numOfPreparationThreads;
 
 
 	// All possible vectors for basic noise (1.4142 can be added as well)

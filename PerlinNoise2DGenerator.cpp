@@ -41,6 +41,8 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
 
     // Get the number of CPU cores for the number of threads
     numCPUs = std::thread::hardware_concurrency();
+    numCPUs = 2;
+    numOfPreparationThreads = 1;
 
     // Setting range for a task and set amount to prepare
     // Finding "greatest common divisor" for Width, Height and number of CPUs
@@ -51,21 +53,29 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     //leftForPreparation = Width >= Height ? Width : Height;
 
     // TODO: find a better way to separate the task
-    praparationRange = std::ceil(float(Width) / numCPUs);
+    praparationRange = std::ceil(float(Width) / numOfPreparationThreads);
     leftForPreparation = Width;
 
-    // Creating Ptoducers and Customers threads
-    std::vector<std::thread> gridPreparationThreads(numCPUs / 2);
-    std::vector<std::thread> gridInterpolationThreads(numCPUs / 2);
-
     // DEBUG
+    std::cout << "number of CPUs = " << numCPUs << std::endl;
+    std::cout << "number of preparation threads = " << numOfPreparationThreads << std::endl;
     std::cout << "praparationRange = " << praparationRange << std::endl;
     std::cout << "leftForPreparation = " << leftForPreparation << std::endl;
 
-    for (int i = 0; i < numCPUs / 2; ++i)
+    // Creating Ptoducers and Customers threads
+    std::vector<std::thread> gridPreparationThreads(numOfPreparationThreads);
+    std::vector<std::thread> gridInterpolationThreads(numCPUs - numOfPreparationThreads);
+
+    for (int i = 0; i < numOfPreparationThreads; ++i)
     {
         // Pass function to creating thread as member of this class 
         gridPreparationThreads[i] = std::thread(&PerlinNoise2DGenerator::gridPreparation, this);
+        //gridInterpolationThreads[i] = std::thread(&PerlinNoise2DGenerator::GridInterpolation, this);
+    }
+    for (int i = 0; i < numCPUs - numOfPreparationThreads; ++i)
+    {
+        // Pass function to creating thread as member of this class 
+       //gridPreparationThreads[i] = std::thread(&PerlinNoise2DGenerator::gridPreparation, this);
         gridInterpolationThreads[i] = std::thread(&PerlinNoise2DGenerator::GridInterpolation, this);
     }
 
@@ -103,7 +113,7 @@ void PerlinNoise2DGenerator::gridPreparation()
 
     while ( true /* END OF THE RANGE !AND! NOT OUT OF ARRAY */)
     {
-        std::queue<Task> subtasksQueue;
+       //std::queue<Task> subtasksQueue;
 
         // Define preparation range
         {
@@ -150,7 +160,15 @@ void PerlinNoise2DGenerator::gridPreparation()
                 float LBDp = dotProduct(vectorLB, initial2DNoiseGrid[int(x / (freq + 1))][int(y / (freq + 1)) + 1]);
                 float RBDp = dotProduct(vectorRB, initial2DNoiseGrid[int(x / (freq + 1)) + 1][int(y / (freq + 1)) + 1]);
 
-                subtasksQueue.push(Task(x, y, LTDp, RTDp, LBDp, RBDp));
+               // subtasksQueue.push(Task(x, y, LTDp, RTDp, LBDp, RBDp));
+
+                {
+                    std::unique_lock<std::mutex> lock_tasksArray(tasksQueue_mutex);
+                    tasksQueue.push(Task(x, y, LTDp, RTDp, LBDp, RBDp));
+                    available_task.notify_one();
+                    // TODO: NOTIFY GridInterpolations TO START
+                }
+                //available_task.notify_one();
 
             }
         }
@@ -159,19 +177,21 @@ void PerlinNoise2DGenerator::gridPreparation()
         // PACK Dot products INTO A TASK 
         // UNLOCK tasksQueue
 
+        /*
         {
             std::unique_lock<std::mutex> lock_tasksArray(tasksQueue_mutex);
             tasksQueue.push(subtasksQueue);
             available_task.notify_one();
             // TODO: NOTIFY GridInterpolations TO START
         }
+        */
 
     } 
 }
 
 void PerlinNoise2DGenerator::GridInterpolation()
 {
-    std::queue<Task> currentTasksBlock;
+    //std::queue<Task> currentTasksBlock;
 
     while (true /* !tasksQueue.empty() && threadsFinished == ThreadsNum */)
     {
@@ -179,20 +199,58 @@ void PerlinNoise2DGenerator::GridInterpolation()
 
         // Checking for available tasks
         {
-            std::unique_lock<std::mutex> lock_tasksQueue(tasksQueue_mutex);
+            //std::unique_lock<std::mutex> lock_tasksQueue(tasksQueue_mutex);
+            tasksQueue_mutex.lock();
             if (!tasksQueue.empty())
             {
-                currentTasksBlock = tasksQueue.front();
+                //currentTasksBlock = tasksQueue.front();
+                Task taskInProcess = tasksQueue.front();
                 tasksQueue.pop();
+
+                tasksQueue_mutex.unlock();
+
+
+                float finalLerp;
+
+                if (useCosLerp)
+                {
+                    // Finding interpolation with fade for "top" two dot products
+                    float UpLerp = fadeLerp((taskInProcess.xPosotion % (freq + 1)) * (1 / float(freq + 1)), taskInProcess.LTDp, taskInProcess.RTDp);
+                    // Finding interpolation with fade for "bottom" two dot products
+                    float DownLerp = fadeLerp((taskInProcess.xPosotion % (freq + 1)) * (1 / float(freq + 1)), taskInProcess.LBDp, taskInProcess.RBDp);
+                    // Finding result value for Perling noise in position x y
+                    finalLerp = fadeLerp((taskInProcess.yPosition % (freq + 1)) * (1 / float(freq + 1)), UpLerp, DownLerp);
+                }
+                else
+                {
+                    // Finding interpolation with fade for "top" two dot products  
+                    float UpLerp = cosLerp((taskInProcess.xPosotion % (freq + 1)) * (1 / float(freq + 1)), taskInProcess.LTDp, taskInProcess.RTDp);
+                    // Finding interpolation with fade for "bottom" two dot products     
+                    float DownLerp = cosLerp((taskInProcess.xPosotion % (freq + 1)) * (1 / float(freq + 1)), taskInProcess.LBDp, taskInProcess.RBDp);
+                    // Finding result value for Perling noise in position x y  
+                    finalLerp = cosLerp((taskInProcess.yPosition % (freq + 1)) * (1 / float(freq + 1)), UpLerp, DownLerp);
+                }
+
+                // Set up thresholds for result value
+                finalLerp = thresholdsSetup(finalLerp, minThreshold, maxThreshold);
+
+                // LOCK noise2DArray
+                {
+                    std::unique_lock<std::mutex> lock_noise2DArray(noise2DArray_mutex);
+                    // Set value of Perling noise in the position to array
+                    noise2DArray[taskInProcess.xPosotion][taskInProcess.yPosition] = finalLerp;
+                }
+
             }
             else
             {
+                tasksQueue_mutex.unlock();
                 // Checking for any preparations in progress
                 {
                     std::unique_lock<std::mutex> lock_finishedThreadsNum(finishedThreadsNum_mutex);
-                    if (finishedThreadsNum < numCPUs / 2)
+                    if (finishedThreadsNum < numOfPreparationThreads) //numCPUs / 2)
                     {
-                        available_task.wait(lock_finishedThreadsNum, [&] {return (finishedThreadsNum < numCPUs / 2); });
+                        available_task.wait(lock_finishedThreadsNum);  //, [&] {return !tasksQueue.empty(); });
                         // TODO: await notification
                         continue;
                     }
@@ -206,6 +264,7 @@ void PerlinNoise2DGenerator::GridInterpolation()
         }
 
 
+        /*
         // Processing current task
         while (!currentTasksBlock.empty())
         {
@@ -247,6 +306,7 @@ void PerlinNoise2DGenerator::GridInterpolation()
             // Remove finifhed task 
             currentTasksBlock.pop();
         }
+        */
 
     }
 }
