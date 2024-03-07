@@ -7,9 +7,9 @@
  int main()
 {
     int seed = 123456788;
-    int friquency = 34;
-    const int width = 5900;
-    const int height = 5060;
+    int friquency = 200;
+    const int width = 8000;
+    const int height = 8000;
 
 
 
@@ -17,7 +17,7 @@
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Start the clock
     auto noise_Generation_start = std::chrono::high_resolution_clock::now();
 
-    PerlinNoise2DGenerator noise(width, height, friquency, seed, true, true);
+    PerlinNoise2DGenerator noise(width, height, friquency, seed);
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Stop the clock
     auto noise_Generation_end = std::chrono::high_resolution_clock::now();
@@ -40,19 +40,28 @@
     image.create(noise.Width, noise.Height);
 
 
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Start the clock
+    auto noise_Convert_start = std::chrono::high_resolution_clock::now();
+
     // Convert the values to black and white and set pixels in the image
     for (int y = 0; y < noise.Height; ++y) {
         for (int x = 0; x < noise.Width; ++x) {
-            float value = noise.getValueAtPoint(x, y);
-
-            // Map the value from [minValue, maxValue] to [0, 255]
-            int grayValue = static_cast<int>((value - minValue) / (maxValue - minValue) * 255);
+            
+            int grayValue = noise.getBlackAndWhiteValueAtPoint(x, y);
 
             sf::Color pixelColor(grayValue, grayValue, grayValue);
+
             image.setPixel(x, y, pixelColor);
 
         }
     }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Stop the clock
+    auto noise_Convert_end = std::chrono::high_resolution_clock::now();
+    // Calculate the duration
+    auto noise_Convert_duration = std::chrono::duration_cast<std::chrono::milliseconds>(noise_Convert_end - noise_Convert_start);
+    // Print the duration
+    std::cout << "Noise Convert: " << noise_Convert_duration.count() << " milliseconds" << std::endl;
 
 
     // Create an SFML texture and sprite to draw the image on the window

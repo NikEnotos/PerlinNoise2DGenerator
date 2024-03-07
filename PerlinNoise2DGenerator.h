@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <queue>
-#include <thread>
+//#include <thread>
 #include <mutex>
 
 struct Point
@@ -44,6 +44,8 @@ public:
 
 	float getValueAtPoint(int x, int y);
 
+	int getBlackAndWhiteValueAtPoint(int x, int y);
+
 	// TODO: Create getWidth() and getHeight()
 	int Width;
 	int Height;
@@ -52,12 +54,15 @@ private:
 
 	// munex for progress of preparation
 	std::mutex preparationProgress_mutex;
+	// mutex for noise2DArray
+	std::mutex noise2DArray_mutex;
 	// mutex for tasksQueue
 	std::mutex tasksQueue_mutex;
 	// mutex for finishedThreadsNum
 	std::mutex finishedThreadsNum_mutex;
-	// mutex for noise2DArray
-	std::mutex noise2DArray_mutex;
+	// mutex for blackAndWhiteNoise2DArray
+	std::mutex blackAndWhiteNoise2DArray_mutex;
+
 
 	std::condition_variable available_task;
 
@@ -65,16 +70,16 @@ private:
 	// number of CPUs used for calculations
 	int numCPUs;
 	// value of the range deducated for a task
-	int praparationRange;
-	// value to trask progress of preparation
-	int leftForPreparation;
+	int calculationRange;
+	// value to trask progress of calculation
+	int leftForCalculatio;
 	// queue of prepared blocks of tasks
-	std::queue<Task> tasksQueue;
+	std::queue<int> tasksQueue;
 	// to control finished threads
 	int finishedThreadsNum = 0;
 
 	// DEBUG
-	int numOfPreparationThreads;
+	int numOfCalculationThreads;
 
 
 	// All possible vectors for basic noise (1.4142 can be added as well)
@@ -82,7 +87,6 @@ private:
 
 	// Array with basic noise grid
 	std::vector<std::vector<Point>> initial2DNoiseGrid;
-
 
 	int seed; // The seed is used to initialize the state of the generator and determines the sequence of random numbers it produces.
 	int freq; // Noise grid frequency
@@ -94,10 +98,12 @@ private:
 
 	std::vector<std::vector<float>> noise2DArray;
 
-	// Function for grid preparation using threading
-	void gridPreparation();
-	// Function for grid interpolation using threading 
-	void GridInterpolation();
+	std::vector<std::vector<int>> blackAndWhiteNoise2DArray;
+
+	// Function for grid calculation using threading
+	void gridCalculation();
+	// Function for grid convertion using threading 
+	void gridConvertion();
 
 
 	float fadeFunction(float pos);
