@@ -38,7 +38,7 @@ class PerlinNoise2DGenerator
 {
 public: 
 
-	PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn = 0, bool seamlessVertically = false, bool seamlessHorizontally = false, bool useCosLerp = false, float minThreshold = -1.0, float maxThreshold = 1.0);
+	PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn = 0, bool seamlessVertically = false, bool seamlessHorizontally = false, float minThreshold = -1.0, float maxThreshold = 1.0);
 
 	inline int getSeed() { return seed; }
 
@@ -92,7 +92,6 @@ private:
 	int freq; // Noise grid frequency
 	bool seamlessVertically;
 	bool seamlessHorizontally;
-	bool useCosLerp;
 	float minThreshold;
 	float maxThreshold;
 

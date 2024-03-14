@@ -4,7 +4,7 @@
 #include "PerlinNoise2DGenerator.h"
 
 
-PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, bool useCosLerp, float minThreshold, float maxThreshold)
+PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, float minThreshold, float maxThreshold)
 {
     freq = frequency;
 
@@ -31,8 +31,6 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     this->seamlessVertically = seamlessVertically;
     this->seamlessHorizontally = seamlessHorizontally;
 
-    this->useCosLerp = useCosLerp;
-
     this->minThreshold = minThreshold;
     this->maxThreshold = maxThreshold;
 
@@ -44,8 +42,9 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     numCPUs = std::thread::hardware_concurrency();
 
     //DEBUG
-    numCPUs = 6;
-    numOfCalculationThreads = 4;
+    numCPUs = 8;
+    numOfCalculationThreads = 6;
+    int numOfTaskParts = numOfCalculationThreads * 10;
 
     // Setting range for a task and set amount to prepare
     // Finding "greatest common divisor" for Width, Height and number of CPUs
@@ -56,25 +55,25 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     //leftForPreparation = Width >= Height ? Width : Height;
 
     // TODO: find a better way to separate the task
-    calculationRange = std::ceil(float(Width) / (numOfCalculationThreads*4));
+    calculationRange = std::ceil(float(Width) / numOfTaskParts);
     leftForCalculatio = Width;
 
     // DEBUG
     std::cout << "number of CPUs = " << numCPUs << std::endl;
-    std::cout << "number of preparation threads = " << numOfCalculationThreads << std::endl;
-    std::cout << "calculationRange = " << calculationRange << std::endl;
-    std::cout << "leftForCalculatio = " << leftForCalculatio << std::endl;
+    std::cout << "number of threads for grid preparation = " << numOfCalculationThreads << std::endl;
+    std::cout << "number of threads for grid convertion = " << numCPUs - numOfCalculationThreads << std::endl;
+    std::cout << "the entire task is divided into: " << numOfTaskParts << " parts " << std::endl;
 
     // Creating Ptoducers and Customers threads
     std::vector<std::thread> gridCalculationThreads(numOfCalculationThreads);
     std::vector<std::thread> gridConvertionThreads(numCPUs - numOfCalculationThreads);
 
-    for (int i = 0; i < numOfCalculationThreads; ++i)
+    for (int i = 0; i < gridCalculationThreads.size(); ++i)
     {
         // Pass function to creating thread as member of this class 
         gridCalculationThreads[i] = std::thread(&PerlinNoise2DGenerator::gridCalculation, this);
     }
-    for (int i = 0; i < numCPUs - numOfCalculationThreads; ++i)
+    for (int i = 0; i < gridConvertionThreads.size(); ++i)
     {
         // Pass function to creating thread as member of this class 
         gridConvertionThreads[i] = std::thread(&PerlinNoise2DGenerator::gridConvertion, this);
@@ -131,6 +130,8 @@ void PerlinNoise2DGenerator::gridCalculation()
                 std::unique_lock<std::mutex> lock_finishedThreadsNum(finishedThreadsNum_mutex);
                 ++finishedThreadsNum;
 
+                std::cout << "[+] gridCalculation: finishedThreadsNum = " << finishedThreadsNum << std::endl;
+
                 return;
             }
         }
@@ -166,26 +167,14 @@ void PerlinNoise2DGenerator::gridCalculation()
                 float LBDp = dotProduct(vectorLB, initial2DNoiseGrid[int(x / (freq + 1))][int(y / (freq + 1)) + 1]);
                 float RBDp = dotProduct(vectorRB, initial2DNoiseGrid[int(x / (freq + 1)) + 1][int(y / (freq + 1)) + 1]);
 
-                float finalLerp;
 
-                if (useCosLerp)
-                {
-                    // Finding interpolation with fade for "top" two dot products
-                    float UpLerp = cosLerp((x % (freq + 1)) * (1 / float(freq + 1)), LTDp, RTDp);
-                    // Finding interpolation with fade for "bottom" two dot products
-                    float DownLerp = cosLerp((x % (freq + 1)) * (1 / float(freq + 1)), LBDp, RBDp);
-                    // Finding result value for Perling noise in position x y
-                    finalLerp = cosLerp((y % (freq + 1)) * (1 / float(freq + 1)), UpLerp, DownLerp);
-                }
-                else
-                {
-                    // Finding interpolation with fade for "top" two dot products  
-                    float UpLerp = fadeLerp((x % (freq + 1)) * (1 / float(freq + 1)), LTDp, RTDp);
-                    // Finding interpolation with fade for "bottom" two dot products     
-                    float DownLerp = fadeLerp((x % (freq + 1)) * (1 / float(freq + 1)), LBDp, RBDp);
-                    // Finding result value for Perling noise in position x y  
-                    finalLerp = fadeLerp((y % (freq + 1)) * (1 / float(freq + 1)), UpLerp, DownLerp);
-                }
+                // Finding interpolation with fade for "top" two dot products  
+                float UpLerp = fadeLerp((x % (freq + 1)) * (1 / float(freq + 1)), LTDp, RTDp);
+                // Finding interpolation with fade for "bottom" two dot products     
+                float DownLerp = fadeLerp((x % (freq + 1)) * (1 / float(freq + 1)), LBDp, RBDp);
+                // Finding result value for Perling noise in position x y  
+                float finalLerp = fadeLerp((y % (freq + 1)) * (1 / float(freq + 1)), UpLerp, DownLerp);
+                
 
                 // Set up thresholds for result value
                 finalLerp = thresholdsSetup(finalLerp, minThreshold, maxThreshold);
@@ -234,12 +223,17 @@ void PerlinNoise2DGenerator::gridConvertion()
 
                 if (finishedThreadsNum < numOfCalculationThreads)
                 {
-                    available_task.wait(lock_finishedThreadsNum);
+                    std::cout << "[!] gridConvertion WAITING " << std::endl;
+
+                    available_task.wait(lock_finishedThreadsNum, [&] {return !tasksQueue.empty() || finishedThreadsNum == numOfCalculationThreads; });
+
+                    std::cout << "[*] gridConvertion CONTINUE " << std::endl;
 
                     continue;
                 }
                 else
                 {
+                    std::cout << "[+] gridConvertion " << std::endl;
                     return;
                 }
             }
