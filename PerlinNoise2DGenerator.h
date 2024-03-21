@@ -60,8 +60,6 @@ private:
 	std::mutex tasksQueue_mutex;
 	// mutex for finishedThreadsNum
 	std::mutex finishedThreadsNum_mutex;
-	// mutex for blackAndWhiteNoise2DArray
-	std::mutex blackAndWhiteNoise2DArray_mutex;
 
 
 	std::condition_variable available_task;
@@ -101,8 +99,8 @@ private:
 
 	// Function for grid calculation using threading
 	void gridCalculation();
-	// Function for grid convertion using threading 
-	void gridConvertion();
+	// Function for grid Conversion using threading 
+	void gridConversion();
 
 
 	float fadeFunction(float pos);

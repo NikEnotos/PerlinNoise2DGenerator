@@ -41,19 +41,11 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     // Get the number of CPU cores for the number of threads
     numCPUs = std::thread::hardware_concurrency();
 
-    //DEBUG
-    numCPUs = 8;
-    numOfCalculationThreads = 6;
-    int numOfTaskParts = numOfCalculationThreads * 10;
+    // Set number of Calculation threads and number of sub-tasks 
+    numOfCalculationThreads = numCPUs - 1;
+    int numOfTaskParts = numOfCalculationThreads * 50;
 
     // Setting range for a task and set amount to prepare
-    // Finding "greatest common divisor" for Width, Height and number of CPUs
-    //praparationRange = std::_Gcd(Width, Height);
-    //praparationRange = std::_Gcd(praparationRange, numCPUs);
-
-    //praparationRange = Width >= Height ? std::ceil( Width / numCPUs) : std::ceil(Height / numCPUs);
-    //leftForPreparation = Width >= Height ? Width : Height;
-
     // TODO: find a better way to separate the task
     calculationRange = std::ceil(float(Width) / numOfTaskParts);
     leftForCalculatio = Width;
@@ -61,22 +53,23 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     // DEBUG
     std::cout << "number of CPUs = " << numCPUs << std::endl;
     std::cout << "number of threads for grid preparation = " << numOfCalculationThreads << std::endl;
-    std::cout << "number of threads for grid convertion = " << numCPUs - numOfCalculationThreads << std::endl;
+    std::cout << "number of threads for grid conversion = " << numCPUs - numOfCalculationThreads << std::endl;
     std::cout << "the entire task is divided into: " << numOfTaskParts << " parts " << std::endl;
+    std::cout << "Noise " << widthX << " x " << heightY << std::endl;
 
     // Creating Ptoducers and Customers threads
     std::vector<std::thread> gridCalculationThreads(numOfCalculationThreads);
-    std::vector<std::thread> gridConvertionThreads(numCPUs - numOfCalculationThreads);
+    std::vector<std::thread> gridConversionThreads(numCPUs - numOfCalculationThreads);
 
     for (int i = 0; i < gridCalculationThreads.size(); ++i)
     {
         // Pass function to creating thread as member of this class 
         gridCalculationThreads[i] = std::thread(&PerlinNoise2DGenerator::gridCalculation, this);
     }
-    for (int i = 0; i < gridConvertionThreads.size(); ++i)
+    for (int i = 0; i < gridConversionThreads.size(); ++i)
     {
         // Pass function to creating thread as member of this class 
-        gridConvertionThreads[i] = std::thread(&PerlinNoise2DGenerator::gridConvertion, this);
+        gridConversionThreads[i] = std::thread(&PerlinNoise2DGenerator::gridConversion, this);
     }
 
     // join THREADS
@@ -84,7 +77,7 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     {
         thread.join();
     }
-    for (auto& thread : gridConvertionThreads)
+    for (auto& thread : gridConversionThreads)
     {
         thread.join();
     }
@@ -129,8 +122,6 @@ void PerlinNoise2DGenerator::gridCalculation()
             {
                 std::unique_lock<std::mutex> lock_finishedThreadsNum(finishedThreadsNum_mutex);
                 ++finishedThreadsNum;
-
-                std::cout << "[+] gridCalculation: finishedThreadsNum = " << finishedThreadsNum << std::endl;
 
                 return;
             }
@@ -198,7 +189,7 @@ void PerlinNoise2DGenerator::gridCalculation()
     } 
 }
 
-void PerlinNoise2DGenerator::gridConvertion()
+void PerlinNoise2DGenerator::gridConversion()
 {
 
     while (true /* !tasksQueue.empty() && threadsFinished == ThreadsNum */)
@@ -223,17 +214,17 @@ void PerlinNoise2DGenerator::gridConvertion()
 
                 if (finishedThreadsNum < numOfCalculationThreads)
                 {
-                    std::cout << "[!] gridConvertion WAITING " << std::endl;
+                    //std::cout << "[!] gridConvertion WAITING " << std::endl;
 
-                    available_task.wait(lock_finishedThreadsNum, [&] {return !tasksQueue.empty() || finishedThreadsNum == numOfCalculationThreads; });
+                    available_task.wait(lock_finishedThreadsNum);
 
-                    std::cout << "[*] gridConvertion CONTINUE " << std::endl;
+                    //std::cout << "[*] gridConvertion CONTINUE " << std::endl;
 
                     continue;
                 }
                 else
                 {
-                    std::cout << "[+] gridConvertion " << std::endl;
+                    //std::cout << "[+] gridConvertion " << std::endl;
                     return;
                 }
             }
@@ -252,12 +243,7 @@ void PerlinNoise2DGenerator::gridConvertion()
                 // Map the value from [minValue, maxValue] to [0, 255]
                 int grayValue = static_cast<int>((value - minThreshold) / (maxThreshold - minThreshold) * 255);
 
-                // LOCK blackAndWhiteNoise2DArray
-                {
-                    std::unique_lock<std::mutex> lock_blackAndWhiteNoise2DArray(blackAndWhiteNoise2DArray_mutex);
-                    // Set value of Perling noise in the position to array
-                    blackAndWhiteNoise2DArray[x][y] = grayValue;
-                }
+                blackAndWhiteNoise2DArray[x][y] = grayValue;
 
             }
         }
@@ -348,125 +334,3 @@ int PerlinNoise2DGenerator::getBlackAndWhiteValueAtPoint(int x, int y)
 {
     return blackAndWhiteNoise2DArray[x][y];
 }
-
-
-
-// OLD VERSION
-/* PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool useCosLerp, float minThreshold, float maxThreshold)
-{
-    std::vector<float> row(widthX, 0);
-    std::vector<std::vector<float>> tempArray(heightY, row);
-    noise2DArray = tempArray; // Creating of resulted noise array
-
-    f = frequency;
-
-    // Setting seed in the object
-    if (seedIn == 0)
-    {
-        std::random_device rd;
-        seed = rd();
-    }
-    else seed = seedIn;
-
-
-    const int gridStepX = widthX / f;
-    const int gridStepY = heightY / f;
-
-    // All possible vectors for basic noise
-    Point possibleVectors[]{ {1.0,1.0}, {-1.0,1.0}, {1.0,-1.0}, {-1.0,-1.0}, {std::sqrt(2),0}, {0,std::sqrt(2)}, {-std::sqrt(2),0}, {0,-std::sqrt(2)} };  //1.4142
-
-    // Initialization of array with basic noise grid
-    std::vector<std::vector<Point>> initial2DNoiseGrid(gridStepY + 1, std::vector<Point>(gridStepX + 1));
-    for (int y = 0; y < gridStepY + 1; y++) //initial2DNoiseGrid[0].size()
-    {
-        for (int x = 0; x < gridStepX + 1; x++)
-        {
-            std::mt19937 firstRandomization(seed * (x + 1) + y);
-            std::mt19937 secondRandomization(firstRandomization() * (y + 1) + x);
-            std::mt19937 randChoise(secondRandomization());
-            initial2DNoiseGrid[x][y] = possibleVectors[randChoise() % std::size(possibleVectors)];
-
-
-            // DEBUG
-            //std::cout << initial2DNoiseGrid[x][y].x << " " << initial2DNoiseGrid[x][y].y << "\t";
-            //if (x == initial2DNoiseGrid.size() - 1) {std::cout << " initial2DNoiseGrid.size() = " << initial2DNoiseGrid.size()<< " initial2DNoiseGrid[0].size() = " << initial2DNoiseGrid[0].size(); std::cout << "\n"; }
-        }
-    }
-
-    // Generate Perlin noise value for each element of noise2DArray
-    for (int y = 0; y < heightY; y++) //noise2DArray[0].size()
-    {
-        for (int x = 0; x < widthX; x++)
-        {
-            // Creating 4 vectors from 4 nearest base noise dots to pixel position
-            //Point vectorLT;
-            //vectorLT.x = (x % f) * float(1 / float(f - 1)); //if (x % f < f / 2) vectorLT.x += 0.01; else vectorLT.x -= 0.01;
-            //vectorLT.y = (y % f) * float(1 / float(f - 1)); //if (y % f < f / 2) vectorLT.y += 0.01; else vectorLT.y -= 0.01;
-
-            //Point vectorRT;
-            //vectorRT.x = ((x % f) - f + 1) * float(1 / float(f - 1)); //if (x % f < f / 2) vectorRT.x += 0.01; else vectorRT.x -= 0.01;
-            //vectorRT.y = (y % f) * float(1 / float(f - 1)); //if (y % f < f / 2) vectorRT.y += 0.01; else vectorRT.y -= 0.01;
-
-            //Point vectorLB;
-            //vectorLB.x = (x % f) * float(1 / float(f - 1)); //if (x % f < f / 2) vectorLB.x += 0.01; else vectorLB.x -= 0.01;
-            //vectorLB.y = ((y % f) - f + 1) * float(1 / float(f - 1)); //if (y % f < f / 2) vectorLB.y += 0.01; else vectorLB.y -= 0.01;
-
-            //Point vectorRB;
-            //vectorRB.x = ((x % f) - f + 1) * float(1 / float(f - 1)); //if (x % f < f / 2) vectorRB.x += 0.01; else vectorRB.x -= 0.01;
-            //vectorRB.y = ((y % f) - f + 1) * float(1 / float(f - 1)); //if (y % f < f / 2) vectorRB.y += 0.01; else vectorRB.y -= 0.01;
-
-            Point vectorLT;
-            vectorLT.x = (x % f) * (1.0 / f);
-            vectorLT.y = (y % f) * (1.0 / f); //std::cout << vectorLT.x << " " << vectorLT.y << "\t";
-
-            Point vectorRT;
-            vectorRT.x = ((x % f) - f + 1) * (1.0 / f);
-            vectorRT.y = (y % f) * (1.0 / f); //std::cout << vectorRT.x << " " << vectorRT.y << "\t";
-
-            Point vectorLB;
-            vectorLB.x = (x % f) * (1.0 / f);
-            vectorLB.y = ((y % f) - f + 1) * (1.0 / f); //std::cout << vectorLB.x << " " << vectorLB.y << "\t";
-
-            Point vectorRB;
-            vectorRB.x = ((x % f) - f + 1) * (1.0 / f);
-            vectorRB.y = ((y % f) - f + 1) * (1.0 / f); //std::cout << vectorRB.x << " " << vectorRB.y << "\t";
-
-            //std::cout << "\n";
-
-
-            // Doing dot product of 4 nearest base noise dots and previous 4 vectors
-            float LTDp = dotProduct(vectorLT, initial2DNoiseGrid[int(x / f)][int(y / f)]);
-            float RTDp = dotProduct(vectorRT, initial2DNoiseGrid[int(x / f) + 1][int(y / f)]);
-            float LBDp = dotProduct(vectorLB, initial2DNoiseGrid[int(x / f)][int(y / f) + 1]);
-            float RBDp = dotProduct(vectorRB, initial2DNoiseGrid[int(x / f) + 1][int(y / f) + 1]);
-
-            // Choose method of interpolation
-            if (useCosLerp) {
-                // Finding interpolation with fade for "top" two dot products  
-                float UpLerp = cosLerp((x % f) * float(1 / float(f - 1)), LTDp, RTDp);
-                // Finding interpolation with fade for "bottom" two dot products     
-                float DownLerp = cosLerp((x % f) * float(1 / float(f - 1)), LBDp, RBDp);
-                // Finding result value for Perling noise in position x y  
-                float finalLerp = cosLerp((y % f) * float(1 / float(f - 1)), UpLerp, DownLerp, minThreshold, maxThreshold);
-
-                // Set value of Perling noise in position to array
-                //finalLerp = cosLerp(finalLerp, -1.0, 1.0, minThreshold, maxThreshold); // for islands map
-                noise2DArray[x][y] = finalLerp;
-            }
-            else {
-                // Finding interpolation with fade for "top" two dot products
-                float UpLerp = fadeLerp((x % f) * float(1 / float(f - 1)), LTDp, RTDp);
-                // Finding interpolation with fade for "bottom" two dot products
-                float DownLerp = fadeLerp((x % f) * float(1 / float(f - 1)), LBDp, RBDp);
-                // Finding result value for Perling noise in position x y
-                float finalLerp = fadeLerp((y % f) * float(1 / float(f - 1)), UpLerp, DownLerp);
-
-                // Set value of Perling noise in position to array
-                //finalLerp = cosLerp(finalLerp, -1.0, 1.0, minThreshold, maxThreshold); // for islands map
-                noise2DArray[x][y] = finalLerp;
-            }
-        }
-    }
-} */
-
-
