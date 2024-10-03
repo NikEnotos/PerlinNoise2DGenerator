@@ -10,8 +10,6 @@ struct Point
 	float y;
 };
 
-
-
 struct Task
 {
 	Task(int x, int y, float newLTDp, float newRTDp, float newLBDp, float newRBDp)
@@ -38,7 +36,7 @@ class PerlinNoise2DGenerator
 {
 public: 
 
-	PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn = 0, bool seamlessVertically = false, bool seamlessHorizontally = false, float minThreshold = -1.0, float maxThreshold = 1.0);
+	PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn = 0, bool seamlessVertically = false, bool seamlessHorizontally = false, int numOfChunksForAThread = 1);
 
 	inline int getSeed() { return seed; }
 
@@ -90,8 +88,8 @@ private:
 	int freq; // Noise grid frequency
 	bool seamlessVertically;
 	bool seamlessHorizontally;
-	float minThreshold;
-	float maxThreshold;
+	float minThreshold = -1.0;
+	float maxThreshold = 1.0;
 
 	std::vector<std::vector<float>> noise2DArray;
 
@@ -110,7 +108,6 @@ private:
 	float thresholdsSetup(float value, float minThreshold, float maxThreshold);
 
 	float fadeLerp(float fract, float A, float B);
-	float cosLerp(float fract, float A, float B);
 
 	void setInitial2DNoiseGrid();
 };

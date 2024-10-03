@@ -135,9 +135,11 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PerlinNoise2DGenerator.cpp" />
+    <ClCompile Include="Sequential_PerlinNoise2DGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PerlinNoise2DGenerator.h" />
+    <ClInclude Include="Sequential_PerlinNoise2DGenerator.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

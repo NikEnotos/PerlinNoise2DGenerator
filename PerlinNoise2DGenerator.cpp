@@ -4,13 +4,13 @@
 #include "PerlinNoise2DGenerator.h"
 
 
-PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, float minThreshold, float maxThreshold)
+PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int frequency, int seedIn, bool seamlessVertically, bool seamlessHorizontally, int numOfChunksForAThread)
 {
     freq = frequency;
 
     // Recalculate width and height of array
-    int newWidthX = (widthX - 1) % (freq + 1) == 0 ? widthX : widthX + freq + 1 - ((widthX - 1) % (freq + 1));  // made with the help of HelgSugarcube
-    int newHeightY = (heightY - 1) % (freq + 1) == 0 ? heightY : heightY + freq + 1 - ((heightY - 1) % (freq + 1));  // made with the help of HelgSugarcube    
+    int newWidthX = (widthX - 1) % (freq + 1) == 0 ? widthX : widthX + freq + 1 - ((widthX - 1) % (freq + 1)); 
+    int newHeightY = (heightY - 1) % (freq + 1) == 0 ? heightY : heightY + freq + 1 - ((heightY - 1) % (freq + 1));    
 
     // Creating array with recalculated width and height 
     noise2DArray.resize(newWidthX, std::vector<float>(newHeightY));
@@ -31,9 +31,6 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     this->seamlessVertically = seamlessVertically;
     this->seamlessHorizontally = seamlessHorizontally;
 
-    this->minThreshold = minThreshold;
-    this->maxThreshold = maxThreshold;
-
     // Resizing and setting initial2dNoiseGrid
     setInitial2DNoiseGrid();
 
@@ -43,7 +40,7 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
 
     // Set number of Calculation threads and number of sub-tasks 
     numOfCalculationThreads = numCPUs - 1;
-    int numOfTaskParts = numOfCalculationThreads * 50;
+    int numOfTaskParts = numOfCalculationThreads * numOfChunksForAThread;
 
     // Setting range for a task and set amount to prepare
     // TODO: find a better way to separate the task
@@ -51,11 +48,12 @@ PerlinNoise2DGenerator::PerlinNoise2DGenerator(int widthX, int heightY, int freq
     leftForCalculatio = Width;
 
     // DEBUG
-    std::cout << "number of CPUs = " << numCPUs << std::endl;
-    std::cout << "number of threads for grid preparation = " << numOfCalculationThreads << std::endl;
-    std::cout << "number of threads for grid conversion = " << numCPUs - numOfCalculationThreads << std::endl;
-    std::cout << "the entire task is divided into: " << numOfTaskParts << " parts " << std::endl;
-    std::cout << "Noise " << widthX << " x " << heightY << std::endl;
+    std::cout << "  number of CPUs = " << numCPUs << std::endl;
+    std::cout << "  number of threads for grid preparation = " << numOfCalculationThreads << std::endl;
+    std::cout << "  number of threads for grid conversion = " << numCPUs - numOfCalculationThreads << std::endl;
+    std::cout << "  the entire task is divided into: " << "(" << numOfCalculationThreads << " * " << numOfChunksForAThread << ") = " << numOfTaskParts << " parts " << std::endl;
+    std::cout << "  Noise size: " << widthX << " x " << heightY << std::endl;
+    std::cout << "  Processing... "<< std::endl;
 
     // Creating Ptoducers and Customers threads
     std::vector<std::thread> gridCalculationThreads(numOfCalculationThreads);
@@ -251,7 +249,6 @@ void PerlinNoise2DGenerator::gridConversion()
     }
 }
 
-
 void PerlinNoise2DGenerator::setInitial2DNoiseGrid()
 {
     // All possible vectors for basic noise (1.4142 can be added as well)
@@ -299,14 +296,6 @@ float PerlinNoise2DGenerator::dotProduct(Point A, Point B)
 float PerlinNoise2DGenerator::fadeLerp(float fract, float A, float B)
 {
     return A + fadeFunction(fract) * (B - A);
-}
-
-float PerlinNoise2DGenerator::cosLerp(float fract, float A, float B)
-{
-    float ft = fract * 3.1415927f;
-    float weightFactor = (1.0f - std::cos(ft)) * 0.5f;
-    float result = A * (1.0f - weightFactor) + B * weightFactor;
-    return result;
 }
 
 float PerlinNoise2DGenerator::fadeFunction(float pos)
